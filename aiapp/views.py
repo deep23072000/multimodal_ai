@@ -1,5 +1,5 @@
 import wikipedia
-from django.shortcuts import render,get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from .forms import UploadForm
 from .models import SearchHistory
 
@@ -34,11 +34,24 @@ def home(request):
                     'description': description
                 })
 
+                SearchHistory.objects.create(
+                    query=query,
+                    title="Disambiguation Error",
+                    description=description
+                )
+
             except wikipedia.exceptions.PageError:
+                description = 'No Wikipedia page found for your query.'
                 results.append({
                     'title': 'Page Not Found',
-                    'description': 'No Wikipedia page found for your query.'
+                    'description': description
                 })
+
+                SearchHistory.objects.create(
+                    query=query,
+                    title="Page Not Found",
+                    description=description
+                )
 
         # === Handle uploaded image ===
         if request.FILES.get('image'):
@@ -65,6 +78,7 @@ def home(request):
         'history': history_items
     })
 
+
 def history_detail(request, pk):
     item = get_object_or_404(SearchHistory, pk=pk)
 
@@ -75,10 +89,23 @@ def history_detail(request, pk):
     }]
 
     form = UploadForm()  # empty form on detail page
-    history = SearchHistory.objects.all().order_by('-created_at')[:10]
+    history = SearchHistory.objects.all().order_by('-timestamp')[:10]
 
     return render(request, 'aiapp/multimodal_search.html', {
         'form': form,
         'results': results,
         'history': history
     })
+
+
+def clear_history(request):
+    if request.method == "POST":
+        SearchHistory.objects.all().delete()
+    return redirect('home')
+
+
+def delete_history(request, pk):
+    if request.method == "POST":
+        item = get_object_or_404(SearchHistory, pk=pk)
+        item.delete()
+    return redirect('home')

@@ -28,18 +28,36 @@
         <!-- Sidebar -->
         <aside class="col-span-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow">
             <h2 class="text-lg font-semibold mb-2">📂 History</h2>
+            {% if history %}
             <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
                 {% for item in history %}
-                <li class="border-b pb-1">
-                    <a href="{% url 'history_detail' item.pk %}" class="hover:underline text-blue-600 dark:text-blue-400 font-semibold">
-                        {{ item.title }}
-                    </a><br>
-                    <span class="text-xs">{{ item.query }}</span>
+                <li class="border-b pb-1 flex justify-between items-start">
+                    <div class="w-full">
+                        <a href="{% url 'history_detail' item.pk %}" class="hover:underline text-blue-600 dark:text-blue-400 font-semibold">
+                            {{ item.title }}
+                        </a><br>
+                        <span class="text-xs">{{ item.query }}</span>
+                    </div>
+                    <form method="post" action="{% url 'delete_history' item.pk %}" class="ml-2">
+                        {% csrf_token %}
+                        <button type="submit" title="Delete"
+                                class="text-red-500 text-xs hover:text-red-700 hover:underline">🗑️</button>
+                    </form>
                 </li>
-                {% empty %}
-                <li>No history yet.</li>
                 {% endfor %}
             </ul>
+
+            <!-- Clear All History Button -->
+            <form method="post" action="{% url 'clear_history' %}" class="mt-4">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition text-sm">
+                    🧹 Clear All History
+                </button>
+            </form>
+            {% else %}
+                <p class="text-sm text-gray-500">No history yet.</p>
+            {% endif %}
 
             <div class="mt-6">
                 <h3 class="text-md font-semibold mb-2">⭐ Bookmarks</h3>

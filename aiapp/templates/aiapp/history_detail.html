@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ item.title }} - History Detail</title>
+    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6">
+    <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+        <h1 class="text-2xl font-bold mb-2">{{ item.title }}</h1>
+        <p class="text-sm text-gray-500 mb-4">Searched on: {{ item.timestamp }}</p>
+        <p class="text-base leading-relaxed">{{ item.description }}</p>
+        <a href="{% url 'home' %}" class="mt-4 inline-block text-blue-600 hover:underline">← Back to Home</a>
+    </div>
+</body>
+</html>
