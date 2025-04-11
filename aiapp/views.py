@@ -1,10 +1,14 @@
 import wikipedia
+import tempfile
+import os
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator
 from django.contrib import messages
 
 from .forms import UploadForm
 from .models import SearchHistory
+from .ml_utils import classify_image  # ⬅️ Import the ML utility
 
 
 def paginate_history(request, history_queryset, per_page=5):
@@ -63,13 +67,29 @@ def home(request):
                     description=description
                 )
 
-        # === Handle uploaded image ===
+        # === Handle uploaded image and run ML prediction ===
         if request.FILES.get('image'):
             image_file = request.FILES['image']
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+                for chunk in image_file.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+
+            predictions = classify_image(tmp_path)
+            os.unlink(tmp_path)  # 🔥 Clean up temp file
+
+            pred_text = "\n".join([f"{i+1}. {label} ({prob:.2%})" for i, (label, prob) in enumerate(predictions)])
+
             results.append({
-                'title': '📷 Uploaded Image',
-                'description': f'Image file "{image_file.name}" received. (Hook up to CLIP/BLIP here)'
+                'title': f'📷 Image: {image_file.name}',
+                'description': pred_text
             })
+
+            SearchHistory.objects.create(
+                query=f"Image: {image_file.name}",
+                title="Image Classification",
+                description=pred_text
+            )
 
         # === Handle uploaded audio ===
         if request.FILES.get('audio'):
@@ -78,6 +98,12 @@ def home(request):
                 'title': '🎤 Uploaded Audio',
                 'description': f'Audio file "{audio_file.name}" received. (Hook up to Whisper here)'
             })
+
+            SearchHistory.objects.create(
+                query=f"Audio: {audio_file.name}",
+                title="Audio Upload",
+                description=f"Audio file {audio_file.name} uploaded."
+            )
 
     # Fetch and paginate all search history
     history_queryset = SearchHistory.objects.order_by('-timestamp')
@@ -93,7 +119,6 @@ def home(request):
 def history_detail(request, pk):
     item = get_object_or_404(SearchHistory, pk=pk)
 
-    # Treat this as if it's a result
     results = [{
         'title': item.title,
         'description': item.description,
