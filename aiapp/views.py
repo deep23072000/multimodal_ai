@@ -1,7 +1,17 @@
 import wikipedia
 from django.shortcuts import render, get_object_or_404, redirect
+from django.core.paginator import Paginator
+from django.contrib import messages
+
 from .forms import UploadForm
 from .models import SearchHistory
+
+
+def paginate_history(request, history_queryset, per_page=5):
+    paginator = Paginator(history_queryset, per_page)
+    page_number = request.GET.get("page")
+    return paginator.get_page(page_number)
+
 
 def home(request):
     results = []
@@ -69,13 +79,14 @@ def home(request):
                 'description': f'Audio file "{audio_file.name}" received. (Hook up to Whisper here)'
             })
 
-    # Fetch recent 5 search history records
-    history_items = SearchHistory.objects.order_by('-timestamp')[:5]
+    # Fetch and paginate all search history
+    history_queryset = SearchHistory.objects.order_by('-timestamp')
+    history_page = paginate_history(request, history_queryset)
 
     return render(request, 'aiapp/multimodal_search.html', {
         'form': form,
         'results': results,
-        'history': history_items
+        'history': history_page,
     })
 
 
@@ -89,18 +100,21 @@ def history_detail(request, pk):
     }]
 
     form = UploadForm()  # empty form on detail page
-    history = SearchHistory.objects.all().order_by('-timestamp')[:10]
+
+    history_queryset = SearchHistory.objects.order_by('-timestamp')
+    history_page = paginate_history(request, history_queryset)
 
     return render(request, 'aiapp/multimodal_search.html', {
         'form': form,
         'results': results,
-        'history': history
+        'history': history_page,
     })
 
 
 def clear_history(request):
     if request.method == "POST":
         SearchHistory.objects.all().delete()
+        messages.success(request, "History cleared successfully.")
     return redirect('home')
 
 
@@ -108,4 +122,5 @@ def delete_history(request, pk):
     if request.method == "POST":
         item = get_object_or_404(SearchHistory, pk=pk)
         item.delete()
+        messages.success(request, f'History item "{item.title}" deleted.')
     return redirect('home')
