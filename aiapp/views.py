@@ -8,8 +8,7 @@ from django.contrib import messages
 
 from .forms import UploadForm
 from .models import SearchHistory
-from .ml_utils import classify_image  # ⬅️ Import the ML utility
-
+from .ml_utils import classify_image
 from .whisper_transcribe import transcribe_audio
 
 
@@ -21,6 +20,7 @@ def paginate_history(request, history_queryset, per_page=5):
 
 def home(request):
     results = []
+    result_type_map = []  # Holds (result, type)
     form = UploadForm(request.POST or None, request.FILES or None)
 
     if request.method == "POST" and form.is_valid():
@@ -31,12 +31,14 @@ def home(request):
             try:
                 page = wikipedia.page(query)
                 description = page.content[:500] + '...'
-                results.append({
+                result = {
                     'title': page.title,
-                    'description': description
-                })
+                    'description': description,
+                    'type': 'text'
+                }
+                results.append(result)
+                result_type_map.append(result)
 
-                # Save to search history
                 SearchHistory.objects.create(
                     query=query,
                     title=page.title,
@@ -45,10 +47,13 @@ def home(request):
 
             except wikipedia.exceptions.DisambiguationError as e:
                 description = f'Ambiguous query: {", ".join(e.options[:5])}...'
-                results.append({
+                result = {
                     'title': 'Disambiguation Error',
-                    'description': description
-                })
+                    'description': description,
+                    'type': 'text'
+                }
+                results.append(result)
+                result_type_map.append(result)
 
                 SearchHistory.objects.create(
                     query=query,
@@ -58,10 +63,13 @@ def home(request):
 
             except wikipedia.exceptions.PageError:
                 description = 'No Wikipedia page found for your query.'
-                results.append({
+                result = {
                     'title': 'Page Not Found',
-                    'description': description
-                })
+                    'description': description,
+                    'type': 'text'
+                }
+                results.append(result)
+                result_type_map.append(result)
 
                 SearchHistory.objects.create(
                     query=query,
@@ -82,10 +90,14 @@ def home(request):
 
             pred_text = "\n".join([f"{i+1}. {label} ({prob:.2%})" for i, (label, prob) in enumerate(predictions)])
 
-            results.append({
+            result = {
                 'title': f'📷 Image: {image_file.name}',
-                'description': pred_text
-            })
+                'description': pred_text,
+                'image_url': image_file.url if hasattr(image_file, 'url') else None,
+                'type': 'image'
+            }
+            results.append(result)
+            result_type_map.append(result)
 
             SearchHistory.objects.create(
                 query=f"Image: {image_file.name}",
@@ -99,24 +111,31 @@ def home(request):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
                 for chunk in audio_file.chunks():
                     tmp.write(chunk)
-            tmp_path = tmp.name
+                tmp_path = tmp.name
 
-    # Run transcription using Whisper
             transcription = transcribe_audio(tmp_path)
             os.unlink(tmp_path)
 
-            results.append({
+            result = {
                 'title': '🎤 Audio Transcription',
-                'description': transcription
-            })
+                'description': transcription,
+                'type': 'audio'
+            }
+            results.append(result)
+            result_type_map.append(result)
 
             SearchHistory.objects.create(
                 query=f"Audio: {audio_file.name}",
                 title="Audio Transcription",
                 description=transcription
-             )
+            )
 
-    # Fetch and paginate all search history
+    # Filter results based on `filter` GET param
+    filter_type = request.GET.get('filter', 'all')
+    if filter_type != 'all':
+        results = [r for r in result_type_map if r.get('type') == filter_type]
+
+    # Fetch and paginate search history
     history_queryset = SearchHistory.objects.order_by('-timestamp')
     history_page = paginate_history(request, history_queryset)
 
@@ -124,6 +143,7 @@ def home(request):
         'form': form,
         'results': results,
         'history': history_page,
+        'filter': filter_type,
     })
 
 
@@ -133,9 +153,10 @@ def history_detail(request, pk):
     results = [{
         'title': item.title,
         'description': item.description,
+        'type': 'text'  # Default to text for display
     }]
 
-    form = UploadForm()  # empty form on detail page
+    form = UploadForm()
 
     history_queryset = SearchHistory.objects.order_by('-timestamp')
     history_page = paginate_history(request, history_queryset)
@@ -144,6 +165,7 @@ def history_detail(request, pk):
         'form': form,
         'results': results,
         'history': history_page,
+        'filter': 'all',
     })
 
 

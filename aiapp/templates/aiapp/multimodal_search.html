@@ -8,7 +8,6 @@
 </head>
 <body class="p-4">
 
-<!-- ✅ Toast Notifications -->
 {% if messages %}
 <div class="fixed top-4 right-4 z-50 space-y-2">
     {% for message in messages %}
@@ -18,6 +17,7 @@
     {% endfor %}
 </div>
 {% endif %}
+
 <style>
 @keyframes fade-in {
     from { opacity: 0; transform: translateY(-10px); }
@@ -28,7 +28,7 @@
 }
 </style>
 
-<!-- Top Search Bar -->
+<!-- Search Form -->
 <form method="post" enctype="multipart/form-data" action="{% url 'home' %}" class="flex flex-col md:flex-row items-center gap-4 mb-6">
     {% csrf_token %}
     <input type="text" name="query" placeholder="Search Wikipedia or drop file..."
@@ -41,10 +41,10 @@
     <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">🔍 Search / Upload</button>
 </form>
 
-<!-- Main Layout -->
+<!-- Layout -->
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
-    <!-- Sidebar -->
+    <!-- Sidebar History -->
     <aside class="col-span-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow">
         <h2 class="text-lg font-semibold mb-2">📂 History</h2>
         {% if history %}
@@ -66,8 +66,6 @@
             </li>
             {% endfor %}
         </ul>
-
-        <!-- ✅ Pagination Controls -->
         <div class="mt-4 text-center space-x-2 text-sm">
             {% if history.has_previous %}
                 <a href="?page={{ history.previous_page_number }}" class="text-blue-600 hover:underline">&laquo; Prev</a>
@@ -77,8 +75,6 @@
                 <a href="?page={{ history.next_page_number }}" class="text-blue-600 hover:underline">Next &raquo;</a>
             {% endif %}
         </div>
-
-        <!-- Clear All History Button -->
         <form method="post" action="{% url 'clear_history' %}" class="mt-4"
               onsubmit="return confirm('Are you sure you want to clear all history?');">
             {% csrf_token %}
@@ -106,16 +102,16 @@
         </div>
     </aside>
 
-    <!-- Main Panel -->
+    <!-- Results Main -->
     <main class="col-span-2 space-y-4">
         <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold">Results</h2>
             <div class="space-x-2">
-                <button class="px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">All</button>
-                <button class="px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">Text</button>
-                <button class="px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">Image</button>
-                <button class="px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">Video</button>
-                <button class="px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">Audio</button>
+                <a href="?filter=all" class="px-2 py-1 rounded-lg {% if filter == 'all' %}bg-indigo-600 text-white{% else %}bg-gray-200 dark:bg-gray-700{% endif %}">All</a>
+                <a href="?filter=text" class="px-2 py-1 rounded-lg {% if filter == 'text' %}bg-indigo-600 text-white{% else %}bg-gray-200 dark:bg-gray-700{% endif %}">Text</a>
+                <a href="?filter=image" class="px-2 py-1 rounded-lg {% if filter == 'image' %}bg-indigo-600 text-white{% else %}bg-gray-200 dark:bg-gray-700{% endif %}">Image</a>
+                <a href="?filter=video" class="px-2 py-1 rounded-lg {% if filter == 'video' %}bg-indigo-600 text-white{% else %}bg-gray-200 dark:bg-gray-700{% endif %}">Video</a>
+                <a href="?filter=audio" class="px-2 py-1 rounded-lg {% if filter == 'audio' %}bg-indigo-600 text-white{% else %}bg-gray-200 dark:bg-gray-700{% endif %}">Audio</a>
             </div>
         </div>
 
@@ -125,17 +121,15 @@
             <div class="rounded-2xl overflow-hidden shadow-lg bg-white dark:bg-gray-800">
                 <div class="p-4">
                     <h3 class="font-semibold text-base mb-1">
-                        🔎 {{ result.title }}
+                        {{ result.title }}
                         {% if request.resolver_match.url_name == "history_detail" %}
                         <span class="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">History</span>
                         {% endif %}
                     </h3>
-
                     {% if result.image_url %}
                     <img src="{{ result.image_url }}" alt="Uploaded Image"
                          class="w-full max-h-64 object-contain mb-2 rounded-lg border">
                     {% endif %}
-
                     <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">
                         {{ result.description }}
                     </p>
@@ -143,6 +137,8 @@
             </div>
             {% endfor %}
         </div>
+        {% else %}
+        <p class="text-sm text-gray-500">No results found.</p>
         {% endif %}
     </main>
 
@@ -157,7 +153,7 @@
     </aside>
 </div>
 
-<!-- Explainability & Analytics -->
+<!-- Explainability -->
 <div class="mt-8 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow">
     <h2 class="text-lg font-semibold mb-2">📊 Explainability & Analytics</h2>
     <p class="text-sm text-gray-600 dark:text-gray-400">
