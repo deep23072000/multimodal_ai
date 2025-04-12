@@ -10,6 +10,8 @@ from .forms import UploadForm
 from .models import SearchHistory
 from .ml_utils import classify_image  # ⬅️ Import the ML utility
 
+from .whisper_transcribe import transcribe_audio
+
 
 def paginate_history(request, history_queryset, per_page=5):
     paginator = Paginator(history_queryset, per_page)
@@ -94,16 +96,25 @@ def home(request):
         # === Handle uploaded audio ===
         if request.FILES.get('audio'):
             audio_file = request.FILES['audio']
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+                for chunk in audio_file.chunks():
+                    tmp.write(chunk)
+            tmp_path = tmp.name
+
+    # Run transcription using Whisper
+            transcription = transcribe_audio(tmp_path)
+            os.unlink(tmp_path)
+
             results.append({
-                'title': '🎤 Uploaded Audio',
-                'description': f'Audio file "{audio_file.name}" received. (Hook up to Whisper here)'
+                'title': '🎤 Audio Transcription',
+                'description': transcription
             })
 
             SearchHistory.objects.create(
                 query=f"Audio: {audio_file.name}",
-                title="Audio Upload",
-                description=f"Audio file {audio_file.name} uploaded."
-            )
+                title="Audio Transcription",
+                description=transcription
+             )
 
     # Fetch and paginate all search history
     history_queryset = SearchHistory.objects.order_by('-timestamp')
